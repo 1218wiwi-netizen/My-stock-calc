@@ -1,1 +1,1 @@
-# My-stock-calc
+# stock-calc
