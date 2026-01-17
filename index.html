@@ -1,0 +1,81 @@
+class LeveragedLoopSystem:
+    def __init__(self, 
+                 capital=200000,
+                 leverage=1.6,
+                 interest_pledge=0.025,
+                 interest_loan=0.033,
+                 yield_rate=0.10,
+                 dividend_yield=0.035,
+                 maintenance_ratio=2.0,
+                 hedge_rate=0.35,
+                 rebalance_thresh=0.08):
+        
+        self.capital = capital
+        self.leverage = leverage
+        self.interest_pledge = interest_pledge
+        self.interest_loan = interest_loan
+        self.yield_rate = yield_rate
+        self.dividend_yield = dividend_yield
+        self.maintenance_ratio = maintenance_ratio
+        self.hedge_rate = hedge_rate
+        self.rebalance_thresh = rebalance_thresh
+
+        self.market_value = capital * leverage
+        self.debt = self.market_value - capital
+        self.year = 0
+
+    def simulate_year(self):
+        self.year += 1
+
+        # 年化市場波動
+        growth = self.yield_rate
+        self.market_value *= (1 + growth)
+
+        # 股息現金流
+        dividend_income = self.market_value * self.dividend_yield
+
+        # 支付質押利息
+        interest_cost = self.debt * self.interest_pledge
+
+        # 剩餘可 reinvest 現金流
+        net_cash_flow = dividend_income - interest_cost
+        if net_cash_flow > 0:
+            self.capital += net_cash_flow
+        
+        # 維持率計算
+        maintenance = self.market_value / self.debt
+        print(f"[Year {self.year}] MV={self.market_value:,.0f} Debt={self.debt:,.0f} MR={maintenance:.2f}")
+
+        # 低維持率 → 自動去槓桿
+        if maintenance < self.maintenance_ratio:
+            reduction = self.market_value * self.hedge_rate
+            self.debt -= reduction
+            self.market_value -= reduction
+            print(f"  >> Hedge applied, reduce {reduction:,.0f}")
+
+        # 高維持率 → 自動增槓桿
+        elif maintenance > (self.maintenance_ratio + self.rebalance_thresh):
+            expansion = self.market_value * 0.15
+            self.market_value += expansion
+            self.debt += expansion
+            print(f"  >> Re-Leverage +{expansion:,.0f}")
+
+        return {
+            "year": self.year,
+            "market_value": self.market_value,
+            "debt": self.debt,
+            "capital": self.capital
+        }
+
+
+# ======= Demo run ========
+sys = LeveragedLoopSystem(
+    capital=200000,
+    leverage=1.6,
+    yield_rate=0.10,
+    dividend_yield=0.035,
+    maintenance_ratio=2.0
+)
+
+for i in range(10):
+    sys.simulate_year()
